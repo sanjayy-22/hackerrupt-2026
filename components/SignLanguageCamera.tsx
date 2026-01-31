@@ -23,7 +23,7 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
   const [detectedText, setDetectedText] = useState<string>('');
   const [permissionStatus, setPermissionStatus] = useState<'idle' | 'prompt' | 'granted' | 'denied'>('idle');
   const [isRequestingCamera, setIsRequestingCamera] = useState(false);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(true);
 
   // Stop everything (Stream + Capture)
   const stopEverything = useCallback(() => {
@@ -149,16 +149,15 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
         return;
       }
 
-      // 3. Processing: Send to Gemini (optimize image size for faster API response)
-      // Reduce image size to speed up API calls - Gemini works well with smaller images
+      // 3. Processing: Send to Local YOLO Model (Use higher resolution)
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 320; // Half resolution for faster processing
-      tempCanvas.height = 240;
+      tempCanvas.width = 640;
+      tempCanvas.height = 480;
       const tempCtx = tempCanvas.getContext('2d');
       if (tempCtx) {
         tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
       }
-      const frameData = tempCanvas.toDataURL('image/jpeg', 0.7); // Lower quality = smaller payload
+      const frameData = tempCanvas.toDataURL('image/jpeg', 0.8); // Slightly better quality
       const base64Data = frameData.split(',')[1];
 
       // Flash effect to indicate *capture*
