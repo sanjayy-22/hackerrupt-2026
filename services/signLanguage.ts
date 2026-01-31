@@ -3,10 +3,17 @@
 
 type SupportedLanguage = 'en' | 'ta';
 
+
+
 export const processSignLanguageImage = async (
   imageBase64: string,
-  language: SupportedLanguage = 'en'
+  language: SupportedLanguage = 'en',
+  mode: 'online' | 'offline' = 'online'
 ): Promise<string> => {
+  if (mode === 'offline') {
+    return processOfflineImage(imageBase64);
+  }
+
   try {
     // 1) API key resolution (works in Vite/browser and server)
     const apiKey =
@@ -110,5 +117,27 @@ Return ONLY the recognized text, nothing else.`;
     console.error("processSignLanguageImage failed:", error);
     if (error instanceof Error) throw error;
     throw new Error(error?.message || "Unknown error in sign recognition service.");
+  }
+};
+
+const processOfflineImage = async (imageBase64: string): Promise<string> => {
+  try {
+    const response = await fetch('http://localhost:5000/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: imageBase64 }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Offline Server Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.text || '';
+  } catch (error) {
+    console.error("Offline processing failed:", error);
+    throw new Error("Failed to connect to offline server. Make sure 'python offline_server/app.py' is running.");
   }
 };

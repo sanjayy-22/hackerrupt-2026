@@ -10,7 +10,7 @@ interface AvatarProps {
 
 const Avatar: React.FC<AvatarProps> = ({ state }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const modelRef = useRef<THREE.Object3D>(null);
+  const modelRef = useRef<THREE.Group>(null);
 
   // Load the GLB model
   const { scene } = useGLTF('/64f1a714fe61576b46f27ca2.glb');
@@ -30,18 +30,20 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
     };
 
     if (animations.length > 0) {
+      console.log("Available Animations:", animations.map(a => a.name));
+
+      // Helper to find animation case-insensitive
+      const findAnim = (keywords: string[]) =>
+        animations.find(a => keywords.some(k => a.name.toLowerCase().includes(k)));
+
       // Find Idle
-      map.idle = animations.find(a => a.name === "Idle") || animations[0];
+      map.idle = findAnim(['idle', 'breath', 'wait', 'stand']) || animations[0];
 
       // Find Talking
-      map.talking = animations.find(a => a.name === "Talking") ||
-        animations.find(a => a.name.toLowerCase().includes('talk')) ||
-        map.idle;
+      map.talking = findAnim(['talk', 'speak', 'say', 'chat', 'explain']) || map.idle;
 
       // Find Thinking (or use Idle if not found)
-      map.thinking = animations.find(a => a.name === "Thinking") ||
-        animations.find(a => a.name.toLowerCase().includes('think')) ||
-        map.idle;
+      map.thinking = findAnim(['think', 'ponder', 'wonder']) || map.idle;
     }
     return map;
   }, [animations]);
@@ -50,17 +52,14 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
   const talkingAnimation = animationsByName.talking;
   const thinkingAnimation = animationsByName.thinking;
 
-  // Debug: Log available animations (remove in production)
+  // Debug: Log chosen animations
   useEffect(() => {
-    if (animations.length > 0) {
-      console.log('Available animations:', animations.map(a => a.name));
-      console.log('Mapped animations:', {
-        idle: idleAnimation?.name,
-        talking: talkingAnimation?.name,
-        thinking: thinkingAnimation?.name
-      });
-    }
-  }, [animations, idleAnimation, talkingAnimation, thinkingAnimation]);
+    console.log("Mapped Animations:", {
+      idle: idleAnimation?.name,
+      talking: talkingAnimation?.name,
+      thinking: thinkingAnimation?.name
+    });
+  }, [idleAnimation, talkingAnimation, thinkingAnimation]);
 
   // Current animation state
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
@@ -136,23 +135,21 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
           material.emissive = new THREE.Color(0x000000);
           material.emissiveIntensity = 0;
         }
+        child.castShadow = true;
+        child.receiveShadow = true;
       }
     });
   }, [scene]);
 
   // Update mixer in useFrame to ensure animations play
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (mixer) {
       mixer.update(delta);
     }
   });
 
-  if (!scene) {
-    return null;
-  }
-
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       <primitive ref={modelRef} object={scene} />
 
       {/* Particle Effects - only show when active */}
@@ -164,6 +161,7 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
           speed={0.4}
           opacity={0.5}
           color="#ffffff"
+          position={[0, 1.5, 0]}
         />
       )}
     </group>

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Video, Square, Camera } from 'lucide-react';
 
 interface SignLanguageCameraProps {
-  onSignDetected: (text: string) => void;
+  onSignDetected: (text: string, imageData: string) => void;
   onProcessingChange?: (isProcessing: boolean) => void;
   language?: 'en' | 'ta';
 }
@@ -23,6 +23,7 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
   const [detectedText, setDetectedText] = useState<string>('');
   const [permissionStatus, setPermissionStatus] = useState<'idle' | 'prompt' | 'granted' | 'denied'>('idle');
   const [isRequestingCamera, setIsRequestingCamera] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   // Stop everything (Stream + Capture)
   const stopEverything = useCallback(() => {
@@ -167,19 +168,24 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
       setIsProcessing(true);
       onProcessingChange?.(true);
 
+      onProcessingChange?.(true);
+
+      // Determine mode dynamically from state
+      const currentMode = isOfflineMode ? 'offline' : 'online';
+
       const { processSignLanguageImage } = await import('../services/signLanguage');
 
       try {
-        const text = await processSignLanguageImage(base64Data, language);
+        const text = await processSignLanguageImage(base64Data, language, currentMode);
 
         // 4. Response Handling
         if (text && text.trim()) {
           setDetectedText(text);
           setError(null);
-          onSignDetected(text); // Triggers TTS in parent
+          onSignDetected(text, frameData); // Triggers TTS in parent
         }
       } catch (procErr: any) {
-        console.error('Error processing frame with Gemini:', procErr);
+        console.error('Error processing frame:', procErr);
         // We do NOT show error usage to user to keep UI clean, just log it.
       } finally {
         // Only NOW strictly allow the next frame to be picked up by the interval ticks
@@ -192,7 +198,8 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
       setIsProcessing(false);
       onProcessingChange?.(false);
     }
-  }, [isProcessing, language, onSignDetected, onProcessingChange]);
+  }, [isProcessing, language, onSignDetected, onProcessingChange, isOfflineMode]);
+
 
   // Start Capture Loop
   const startCapturing = useCallback(() => {
@@ -208,11 +215,11 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
     // Initial capture immediately
     captureAndProcessFrame();
 
-    // Capture every 2 seconds. 
+    // Capture every 5 seconds to stay within API rate limits (approx 12 requests/min)
     // Note: detailed logic ensures we skip if isProcessing is true.
     captureIntervalRef.current = window.setInterval(() => {
       captureAndProcessFrame();
-    }, 2000);
+    }, 5000);
 
   }, [isStreaming, captureAndProcessFrame]);
 
@@ -246,7 +253,7 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
       // But if we just toggled isCapturing from UI:
       // captureAndProcessFrame(); 
 
-      captureIntervalRef.current = window.setInterval(captureAndProcessFrame, 2000);
+      captureIntervalRef.current = window.setInterval(captureAndProcessFrame, 5000);
     } else {
       if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
       captureIntervalRef.current = null;
@@ -281,88 +288,140 @@ const SignLanguageCamera: React.FC<SignLanguageCameraProps> = ({ onSignDetected,
 
 
   return (
-    <div className="fixed left-4 top-20 z-50 transition-all duration-300">
+    <div className="fixed left-6 top-24 z-50 transition-all duration-500 ease-in-out">
 
-      {/* Main Container */}
+      {/* Main Container - Glassmorphic high-end look */}
       <div className={`
-        relative backdrop-blur-md rounded-xl border shadow-2xl overflow-hidden transition-all duration-300
-        ${isStreaming ? 'w-48 bg-black/80 border-white/20' : 'w-auto bg-transparent border-transparent shadow-none'}
-      `}>
+        relative backdrop-blur-xl rounded-3xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500
+        ${isStreaming
+          ? 'w-[420px] bg-[#0a0a0a]/90'
+          : 'w-auto bg-black/40 hover:bg-black/60 cursor-pointer group'}
+      `}
+        onClick={!isStreaming ? toggleCameraSystem : undefined}
+      >
 
-        {/* Header / Status - Only visible when Active */}
-        {isStreaming && (
-          <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isCapturing ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
-            <span className="text-[10px] font-bold text-white shadow-black drop-shadow-md">
-              {isProcessing ? 'ANALYZING...' : isCapturing ? 'LIVE (v2.1)' : 'READY'}
-            </span>
+        {/* Inactive State - Clean Button */}
+        {!isStreaming && (
+          <div className="flex items-center gap-4 px-5 py-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Camera size={20} className="text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-white tracking-wide">Start Camera</span>
+              <span className="text-[10px] text-white/50 font-medium tracking-wider uppercase">Press 'B'</span>
+            </div>
           </div>
         )}
 
-        {/* Video Feed */}
+        {/* Active State - Camera Feed & Controls */}
         {isStreaming && (
-          <div className="relative aspect-[4/3] w-full bg-black">
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover mirror-mode scale-x-[-1]"
-            />
+          <div className="flex flex-col">
 
-            {/* Flash Overlay */}
-            <div className={`absolute inset-0 bg-white pointer-events-none transition-opacity duration-150 ${flash ? 'opacity-30' : 'opacity-0'}`} />
+            {/* Header / Status Bar */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-3 text-xs bg-gradient-to-b from-black/80 to-transparent">
+              <div className="flex items-center gap-2">
+                <span className={`flex h-2 w-2 rounded-full ${isCapturing ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-emerald-500'}`} />
+                <span className="font-bold text-white/90 tracking-wider text-[10px]">
+                  {isProcessing ? 'PROCESSING' : isCapturing ? 'LIVE FEED' : 'STANDBY'}
+                </span>
+              </div>
+              <button
+                onClick={toggleCameraSystem}
+                className="text-white/40 hover:text-white transition-colors"
+                title="Close Camera"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50 group-hover:bg-white" />
+              </button>
+            </div>
 
-            {/* Overlay for instructions if needed */}
+            {/* Video Feed */}
+            <div className="relative aspect-[4/3] w-full bg-black/50">
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover scale-x-[-1] opacity-90"
+              /* Added opacity slightly to blend with dark theme */
+              />
+
+              {/* Grid Overlay for "Tech" feel */}
+              <div className="absolute inset-0 pointer-events-none opacity-20"
+                style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
+              </div>
+
+              {/* Corner Brackets */}
+              <div className="absolute top-2 left-2 w-4 h-4 border-l-2 border-t-2 border-white/30 rounded-tl-sm pointer-events-none" />
+              <div className="absolute top-2 right-2 w-4 h-4 border-r-2 border-t-2 border-white/30 rounded-tr-sm pointer-events-none" />
+              <div className="absolute bottom-2 left-2 w-4 h-4 border-l-2 border-b-2 border-white/30 rounded-bl-sm pointer-events-none" />
+              <div className="absolute bottom-2 right-2 w-4 h-4 border-r-2 border-b-2 border-white/30 rounded-br-sm pointer-events-none" />
+
+              {/* Flash Overlay */}
+              <div className={`absolute inset-0 bg-white pointer-events-none transition-opacity duration-200 ease-out ${flash ? 'opacity-20' : 'opacity-0'}`} />
+
+              {/* Privacy/Off Overlay */}
+              {!streamRef.current && (
+                <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                  <Video size={48} strokeWidth={1} />
+                </div>
+              )}
+            </div>
+
+            {/* Controls Area */}
+            <div className="p-3 bg-black/40 backdrop-blur-md border-t border-white/5 space-y-2">
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={startCapturing}
+                  disabled={isCapturing}
+                  className={`
+                    flex-1 py-2.5 rounded-xl font-semibold text-[11px] tracking-wide transition-all duration-200
+                    flex items-center justify-center gap-2
+                    ${isCapturing
+                      ? 'bg-white/5 text-white/30 cursor-default'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/40 translate-y-0 active:translate-y-0.5'}
+                  `}
+                >
+                  <div className={`w-2 h-2 rounded-full ${isCapturing ? 'bg-gray-500' : 'bg-white'}`} />
+                  {isCapturing ? 'CAPTURING...' : 'START'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCapturing(false)}
+                  disabled={!isCapturing}
+                  className={`
+                    px-4 rounded-xl transition-all duration-200 flex items-center justify-center text-white
+                    ${isCapturing
+                      ? 'bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 cursor-pointer'
+                      : 'bg-white/5 text-white/20 border border-transparent cursor-not-allowed'}
+                  `}
+                >
+                  <Square size={12} fill="currentColor" />
+                </button>
+              </div>
+
+              {/* Mode Toggle */}
+              <button
+                onClick={() => setIsOfflineMode(prev => !prev)}
+                className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
+              >
+                <span className="text-[10px] text-white/40 font-medium">MODE</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-bold ${isOfflineMode ? 'text-amber-400' : 'text-blue-400'}`}>
+                    {isOfflineMode ? 'OFFLINE (FAST)' : 'ONLINE (ACCURATE)'}
+                  </span>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isOfflineMode ? 'bg-amber-400' : 'bg-blue-400'}`} />
+                </div>
+              </button>
+
+            </div>
           </div>
         )}
-
-        {/* Capture Controls */}
-        {isStreaming && (
-          <div className="flex items-center justify-between gap-2 bg-black/70 px-3 py-2 border-t border-white/10">
-            <button
-              type="button"
-              onClick={startCapturing}
-              disabled={isCapturing || isProcessing}
-              className={`flex-1 text-[11px] font-semibold py-1 rounded ${!isCapturing && !isProcessing
-                ? 'bg-green-600 hover:bg-green-500 text-white'
-                : 'bg-green-900/40 text-white/50 cursor-not-allowed'
-                }`}
-            >
-              Start Capture
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCapturing(false)}
-              disabled={!isCapturing}
-              className={`flex-1 text-[11px] font-semibold py-1 rounded ${isCapturing
-                ? 'bg-red-600 hover:bg-red-500 text-white'
-                : 'bg-red-900/40 text-white/50 cursor-not-allowed'
-                }`}
-            >
-              Stop
-            </button>
-          </div>
-        )}
-
-        {/* Error State intentionally hidden to keep camera unobtrusive */}
-
       </div>
 
-      {/* Guide / Hint - Visible when NOT streaming or unobtrusive */}
-      {!isStreaming && (
-        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 hover:bg-black/60 transition-colors group cursor-pointer" onClick={toggleCameraSystem}>
-          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Camera size={16} className="text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-white">Sign Camera</span>
-            <span className="text-[10px] text-gray-300">Press <kbd className="bg-gray-700 px-1 rounded text-white font-mono">B</kbd> to start</span>
-          </div>
-        </div>
-      )}
-
-      {/* Hidden processing canvas */}
+      {/* Hidden processing canvas as before */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

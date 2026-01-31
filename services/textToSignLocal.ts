@@ -1,7 +1,7 @@
 export interface TextToSignResult {
+  vidRef: string;
   videoUrl: string;
   matchedSentence: string;
-  sentenceName: string;
 }
 
 const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:8002';
@@ -29,12 +29,8 @@ export const runTextToSign = async (userText: string): Promise<TextToSignResult>
 
   const data = await response.json();
 
-  // Prepend the backend URL to the video path
-  // data.videoUrl comes as "/videos/text_to_sign_....mp4"
-  return {
-    ...data,
-    videoUrl: `${API_BASE}${data.videoUrl}`
-  };
+  // Return data directly as videoUrl is now external
+  return data;
 };
 
 

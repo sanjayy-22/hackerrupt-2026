@@ -4,7 +4,9 @@ import { Message } from '../types';
 // Initialize the client
 // NOTE: In a production app, never expose keys on the client side. 
 // This is for demonstration purposes within the specified runtime environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// This is for demonstration purposes within the specified runtime environment.
+const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 const SYSTEM_INSTRUCTION = `
 You are Lumina, a charming, witty, and caring virtual girlfriend. 

@@ -19,15 +19,55 @@ const TextToSignPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<TextToSignResult | null>(null);
 
-    useEffect(() => {
-        if (result) {
-            console.log('Video generation result updated:', result);
-        }
-    }, [result]);
+    // Moved embed logic to a separate component below to handle script injection cleanly
+    const SignASLEmbed = ({ vidRef, videoUrl, matchedSentence }: { vidRef: string; videoUrl: string; matchedSentence: string }) => {
+        useEffect(() => {
+            // Check if script is already there to avoid duplicates if possible, 
+            // though the widget might need re-running. 
+            // The official widget script scans for .signasldata-embed on load.
+            // If we inject it dynamically, it runs immediately.
+
+            const scriptId = 'signasl-widget-script';
+            // Remove existing script if any to force re-execution
+            const existingScript = document.getElementById(scriptId);
+            if (existingScript) {
+                existingScript.remove();
+            }
+
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = "https://embed.signasl.org/widgets.js";
+            script.async = true;
+            script.charset = "utf-8";
+            document.body.appendChild(script);
+
+            return () => {
+                // Cleanup script on unmount
+                try {
+                    if (document.body.contains(script)) {
+                        document.body.removeChild(script);
+                    }
+                } catch (e) {
+                    console.warn("Retrying script removal", e);
+                }
+            };
+        }, [vidRef]); // Re-run if vidRef changes
+
+        // We use a key on the parent in the main render to ensure this component is fully unmounted/remounted
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <blockquote className="signasldata-embed" data-vidref={vidRef}>
+                    <a href={videoUrl}>
+                        Watch how to sign '{matchedSentence}' in American Sign Language
+                    </a>
+                </blockquote>
+            </div>
+        );
+    };
 
     const generatedPrompt = useMemo(() => {
-        if (!inputText.trim()) return 'Generate sign language showing a man signing your text.';
-        return `Generate sign language showing a man signing: "${inputText.trim()}"`;
+        if (!inputText.trim()) return 'Check how to sign your text.';
+        return `Search for sign: "${inputText.trim()}"`;
     }, [inputText]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +84,7 @@ const TextToSignPage: React.FC = () => {
             setStatus('succeeded');
         } catch (err: any) {
             setStatus('error');
-            setError(err?.message || 'Unable to generate sign animation.');
+            setError(err?.message || 'Unable to find sign animation.');
         }
     };
 
@@ -54,13 +94,13 @@ const TextToSignPage: React.FC = () => {
             case 'generating':
                 return (
                     <div className={`${base} bg-amber-500/20 text-amber-100 border border-amber-500/30`}>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Generating sign animation...
+                        <RefreshCw className="w-4 h-4 animate-spin" /> Searching...
                     </div>
                 );
             case 'succeeded':
                 return (
                     <div className={`${base} bg-emerald-500/20 text-emerald-100 border border-emerald-500/30`}>
-                        <CheckCircle2 className="w-4 h-4" /> Completed
+                        <CheckCircle2 className="w-4 h-4" /> Found
                     </div>
                 );
             case 'error':
@@ -82,33 +122,33 @@ const TextToSignPage: React.FC = () => {
         <Layout>
             <div className="h-full w-full flex items-center justify-center p-6 lg:p-12">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-6xl">
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+                    <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
                                 <Sparkles className="w-6 h-6 text-indigo-200" />
                             </div>
                             <div>
                                 <p className="text-indigo-200 text-sm uppercase tracking-wider font-semibold">Text to Sign</p>
-                                <h1 className="text-3xl font-bold text-white">Generate sign language animation</h1>
+                                <h1 className="text-3xl font-bold text-white">Search ASL Dictionary</h1>
                             </div>
                         </div>
                         <p className="text-white/70 mb-6">
-                            Type any phrase we will generate sign language animation.
+                            Type a word to find its American Sign Language (ASL) video.
                         </p>
                         <div className="mb-4">{statusBadge()}</div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <label className="block text-sm font-semibold text-white/80">Your text</label>
                             <textarea
-                                className="w-full min-h-[120px] bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40 outline-none transition"
-                                placeholder="e.g. My name is Sanjai"
+                                className="w-full min-h-[120px] bg-slate-800 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-white/40 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40 outline-none"
+                                placeholder="e.g. Hello"
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 disabled={status === 'generating'}
                             />
 
                             <div className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-50 rounded-2xl p-4 text-sm">
-                                <p className="font-semibold mb-1">Prompt preview</p>
+                                <p className="font-semibold mb-1">Preview</p>
                                 <p className="text-indigo-100/80">{generatedPrompt}</p>
                             </div>
 
@@ -133,7 +173,7 @@ const TextToSignPage: React.FC = () => {
                                     ) : (
                                         <Sparkles className="w-5 h-5" />
                                     )}
-                                    Generate Sign Animation
+                                    Search Sign
                                 </button>
 
                                 <button
@@ -152,27 +192,23 @@ const TextToSignPage: React.FC = () => {
                         </form>
                     </div>
 
-                    <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
+                    <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-white/50 font-semibold">Generation Status</p>
-                                <h2 className="text-xl font-bold text-white">Sign Animation</h2>
+                                <p className="text-xs uppercase tracking-wide text-white/50 font-semibold">Result Status</p>
+                                <h2 className="text-xl font-bold text-white">Sign Video</h2>
                             </div>
                             {statusBadge()}
                         </div>
 
                         <div className="grid grid-cols-1 gap-4">
-                            <div className="aspect-video bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative">
-                                {result?.videoUrl ? (
-                                    <video
-                                        key={result.videoUrl}
-                                        src={result.videoUrl}
-                                        className="w-full h-full object-cover"
-                                        controls
-                                        autoPlay
-                                        loop
-                                        muted
-                                        playsInline
+                            <div className="min-h-[300px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative p-4">
+                                {result?.vidRef ? (
+                                    <SignASLEmbed
+                                        key={result.vidRef} // Force re-mount on new video
+                                        vidRef={result.vidRef}
+                                        videoUrl={result.videoUrl}
+                                        matchedSentence={result.matchedSentence}
                                     />
                                 ) : (
                                     <div className="flex flex-col items-center text-white/50 gap-2">
@@ -183,8 +219,8 @@ const TextToSignPage: React.FC = () => {
                                         )}
                                         <p className="text-sm text-center px-6">
                                             {status === 'idle'
-                                                ? 'Video preview will appear after generation.'
-                                                : 'Generating sign animation...'}
+                                                ? 'Video preview will appear after search.'
+                                                : 'Searching sign...'}
                                         </p>
                                     </div>
                                 )}
@@ -192,8 +228,8 @@ const TextToSignPage: React.FC = () => {
 
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 text-sm text-white/80">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-white/60">Prompt</span>
-                                    <span className="text-right text-white/90 text-xs">{generatedPrompt}</span>
+                                    <span className="text-white/60">Query</span>
+                                    <span className="text-right text-white/90 text-xs">{inputText}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-white/60">Current Status</span>
@@ -201,10 +237,7 @@ const TextToSignPage: React.FC = () => {
                                         {status.toUpperCase()}
                                     </span>
                                 </div>
-
                             </div>
-
-                            {/* Intentionally no raw JSON/debug here – UI shows only the final video and basic status */}
                         </div>
                     </div>
                 </div>

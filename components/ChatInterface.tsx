@@ -6,9 +6,17 @@ interface ChatInterfaceProps {
   messages: Message[];
   status: ChatStatus;
   onSendMessage: (text: string) => void;
+  title?: string;
+  subtitle?: string;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, status, onSendMessage }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  messages,
+  status,
+  onSendMessage,
+  title = "BridgeTalk",
+  subtitle = "Virtual Companion"
+}) => {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,14 +40,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, status, onSendM
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between z-10">
 
       {/* Header */}
-      <div className="w-full p-6 flex justify-between items-start bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
-        <div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
-            BridgeTalk
+      <div className="w-full p-6 flex justify-center items-start relative bg-gradient-to-b from-black/60 to-transparent pointer-events-auto">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500 font-syne drop-shadow-sm">
+            {title}
           </h1>
-          <p className="text-xs text-white/60">Virtual Companion</p>
+          <p className="text-sm text-white/60 tracking-wide mt-1">{subtitle}</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
+
+        {/* Status Indicator - Absolute Right */}
+        <div className="absolute right-6 top-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 shadow-lg transition-all hover:bg-white/15">
           <div className={`w-2 h-2 rounded-full ${status === ChatStatus.LOADING ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
           <span className="text-xs font-medium text-white/80">
             {status === ChatStatus.LOADING ? 'Thinking...' : 'Online'}
@@ -48,7 +58,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, status, onSendM
       </div>
 
       {/* Main Chat Area - Centered for visibility but offset to not block avatar too much */}
-      <div className="flex-1 flex flex-col items-center justify-end pb-24 w-full max-w-2xl mx-auto px-4">
+      <div className="flex-1 flex flex-col items-center justify-end pb-24 w-full max-w-4xl mx-auto px-4">
 
         {/* Message History Container */}
         <div className="w-full max-h-[40vh] overflow-y-auto scrollbar-hide flex flex-col gap-3 pointer-events-auto mask-image-gradient p-2">

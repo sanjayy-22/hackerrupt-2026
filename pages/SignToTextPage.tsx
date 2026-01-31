@@ -114,10 +114,13 @@ const SignToTextPage: React.FC = () => {
             </div>
 
             {/* UI Overlay */}
+            {/* UI Overlay */}
             <ChatInterface
                 messages={messages}
                 status={status}
                 onSendMessage={handleSendMessage}
+                title="Sign Language Mode"
+                subtitle="Sign to interact with BridgeTalk"
             />
 
             {/* Sign Language Camera - Left Side */}

@@ -23,20 +23,20 @@ interface ExperienceProps {
 const Experience: React.FC<ExperienceProps> = ({ avatarState }) => {
   return (
     <Canvas
-      camera={{ position: [0, 1, 5], fov: 45 }}
+      camera={{ position: [0, 1.4, 2.5], fov: 40 }}
       shadows
       className="w-full h-full"
     >
       {/* Lighting */}
-      <ambientLight intensity={0.5} />
-      <spotLight 
-        position={[10, 10, 10]} 
-        angle={0.15} 
-        penumbra={1} 
-        intensity={1} 
-        castShadow 
+      <ambientLight intensity={0.6} />
+      <spotLight
+        position={[10, 10, 10]}
+        angle={0.15}
+        penumbra={1}
+        intensity={1.5}
+        castShadow
       />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#db2777" />
+      <pointLight position={[-10, 0, -10]} intensity={1} color="#db2777" />
 
       {/* Camera Controls - Enable zoom, rotate, and pan */}
       <OrbitControls
@@ -44,29 +44,29 @@ const Experience: React.FC<ExperienceProps> = ({ avatarState }) => {
         enableRotate={true}
         enablePan={true}
         minDistance={1}
-        maxDistance={10}
+        maxDistance={8}
         minPolarAngle={0}
         maxPolarAngle={Math.PI / 1.5}
-        target={[0, 1, 0]}
+        target={[0, 0.8, 0]}
       />
 
       {/* Environment */}
       <Environment preset="city" />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      
-      {/* The Avatar */}
-      <group position={[0, -0.5, 0]}>
+
+      {/* The Avatar - Positioned to be centered */}
+      <group position={[0, -0.9, 0]} scale={1.2}>
         <Avatar state={avatarState} />
       </group>
 
       {/* Shadows */}
-      <ContactShadows 
-        resolution={1024} 
-        scale={10} 
-        blur={2} 
-        opacity={0.5} 
-        far={10} 
-        color="#831843" 
+      <ContactShadows
+        resolution={1024}
+        scale={10}
+        blur={2}
+        opacity={0.5}
+        far={10}
+        color="#831843"
       />
     </Canvas>
   );
