@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Camera, Type, MapPin, ArrowRight, Mic, MicOff } from 'lucide-react';
+import { Camera, Type, MapPin, ArrowRight, Mic, MicOff, Video } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -24,10 +24,10 @@ const LandingPage: React.FC = () => {
             color: 'hover:border-purple-500/50 hover:shadow-purple-500/20'
         },
         {
-            title: 'Directions',
-            description: 'Navigate complex environments with AI-assisted guidance.',
-            icon: <MapPin className="w-8 h-8 text-pink-400" />,
-            path: '/directions',
+            title: 'Video Meet Live',
+            description: 'Connect with others in real-time video calls with accessibility features.',
+            icon: <Video className="w-8 h-8 text-pink-400" />,
+            path: '/video-meet-live',
             color: 'hover:border-pink-500/50 hover:shadow-pink-500/20'
         }
     ];
@@ -144,25 +144,22 @@ const LandingPage: React.FC = () => {
             return;
         }
 
-        // More flexible matching for "Directions"
-        if (normalizedCommand.includes('direction') ||
-            normalizedCommand.includes('directions') ||
-            normalizedCommand.includes('navigate') ||
-            normalizedCommand.includes('map') ||
-            normalizedCommand.includes('navigation') ||
-            normalizedCommand.includes('route') ||
-            normalizedCommand.includes('guide') ||
-            normalizedCommand === 'directions' ||
-            normalizedCommand.includes('open direction')) {
-            console.log("Navigating to /directions");
-            setTranscript("Opening Directions...");
-            navigate('/directions');
+        // More flexible matching for "Video Meet Live"
+        if (normalizedCommand.includes('video') ||
+            normalizedCommand.includes('meet') ||
+            normalizedCommand.includes('call') ||
+            normalizedCommand.includes('meeting') ||
+            normalizedCommand.includes('live') ||
+            normalizedCommand === 'video meet') {
+            console.log("Navigating to /video-meet-live");
+            setTranscript("Opening Video Meet Live...");
+            navigate('/video-meet-live');
             return;
         }
 
         // If no match, show error
         console.log("Unknown command:", normalizedCommand);
-        setTranscript(`Unknown: "${command}". Try saying "Sign to Text", "Text to Sign", or "Directions".`);
+        setTranscript(`Unknown: "${command}". Try saying "Sign to Text", "Text to Sign", or "Video Meet".`);
     };
 
     return (
