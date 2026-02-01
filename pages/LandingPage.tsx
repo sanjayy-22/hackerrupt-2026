@@ -24,8 +24,8 @@ const LandingPage: React.FC = () => {
             color: 'hover:border-purple-500/50 hover:shadow-purple-500/20'
         },
         {
-            title: 'Video Meet Live',
-            description: 'Connect with others in real-time video calls with accessibility features.',
+            title: 'Live Sign Interpreter',
+            description: 'Unified Voice-to-Sign and Text-to-Sign translation tools for seamless communication.',
             icon: <Video className="w-8 h-8 text-pink-400" />,
             path: '/video-meet-live',
             color: 'hover:border-pink-500/50 hover:shadow-pink-500/20'
